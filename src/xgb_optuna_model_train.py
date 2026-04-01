@@ -40,7 +40,6 @@ def objective(trial):
         "scale_pos_weight": trial.suggest_float("scale_pos_weight", 1, 20)
     }
 
-    model = XGBClassifier(**params)
     
     # Cross-validation
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -56,6 +55,8 @@ def objective(trial):
         x_tr, y_tr = smote.fit_resample(x_tr, y_tr)
 
         #----------------------- TRAIN MODEL ----------------------
+
+        model = XGBClassifier(**params)
 
         model.fit(x_tr, y_tr)
 

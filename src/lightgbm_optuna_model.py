@@ -45,6 +45,11 @@ def objective(trial):
         "subsample": trial.suggest_float("subsample", 0.6, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
         "random_state": 42,
+<<<<<<< HEAD:src/lightgbm_optuna_model.py
+=======
+        "n_jobs": -1,
+        "deterministic": True,
+>>>>>>> 620a351 (Clean repo: remove model files, add ML pipeline scripts, feature engineering, and evaluation setup):factorygaurd_ai/src/lightgbm_optuna_model.py
         "eval_metric": "logloss",
         "num_leaves": trial.suggest_int("num_leaves", 20, 150),
         "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
@@ -90,9 +95,18 @@ def objective(trial):
     return np.mean(f1_scores)
 
 # ---------------------- RUN OPTUNA ----------------------
+<<<<<<< HEAD:src/lightgbm_optuna_model.py
 study = optuna.create_study(direction="maximize")
 
 study.optimize(objective, n_trials=20)
+=======
+study = optuna.create_study(
+    direction="maximize",
+    sampler=optuna.samplers.TPESampler(seed=42)
+    )
+
+study.optimize(objective, n_trials=50)
+>>>>>>> 620a351 (Clean repo: remove model files, add ML pipeline scripts, feature engineering, and evaluation setup):factorygaurd_ai/src/lightgbm_optuna_model.py
 
 print("\nBest Parameters:\n", study.best_params)
 
@@ -100,7 +114,11 @@ print("\nBest Parameters:\n", study.best_params)
 # ---------------------- MODEL CREATION ----------------------
 lgbm_model = LGBMClassifier(
     **study.best_params,
+<<<<<<< HEAD:src/lightgbm_optuna_model.py
     random_state=42
+=======
+    random_state=42,
+>>>>>>> 620a351 (Clean repo: remove model files, add ML pipeline scripts, feature engineering, and evaluation setup):factorygaurd_ai/src/lightgbm_optuna_model.py
 )
 
 print("LightGBM model created\n")
@@ -177,6 +195,12 @@ plt.show()
 
 
 # ---------------------- SAVE MODEL ----------------------
+<<<<<<< HEAD:src/lightgbm_optuna_model.py
 joblib.dump(lgbm_model, "models/lightgbm_model.pkl")
 
 print("Model saved successfully at 'models/lightgbm_model.pkl'")
+=======
+joblib.dump(lgbm_model, "models/lightgbm_optuna_model.pkl")
+
+print("Model saved successfully at 'models/lightgbm_optuna_model.pkl'")
+>>>>>>> 620a351 (Clean repo: remove model files, add ML pipeline scripts, feature engineering, and evaluation setup):factorygaurd_ai/src/lightgbm_optuna_model.py

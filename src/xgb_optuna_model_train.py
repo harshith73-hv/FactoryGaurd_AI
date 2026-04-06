@@ -35,6 +35,8 @@ def objective(trial):
         "subsample": trial.suggest_float("subsample", 0.6, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
         "random_state": 42,
+        "n_jobs": -1,
+        "verbosity":0,
         "eval_metric": "logloss",
         "gamma": trial.suggest_float("gamma", 0, 5),
         "scale_pos_weight": trial.suggest_float("scale_pos_weight", 1, 20)
@@ -85,7 +87,10 @@ def objective(trial):
 
 
 # ---------------------- RUN OPTUNA ----------------------
-study = optuna.create_study(direction="maximize")
+study = optuna.create_study(
+    direction="maximize",
+    sampler=optuna.samplers.TPESampler(seed=42)
+)
 
 study.optimize(objective, n_trials=20)
 

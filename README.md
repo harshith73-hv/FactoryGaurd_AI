@@ -229,6 +229,9 @@ Final model achieves high precision (0.83) while maintaining reasonable recall (
 │ └── xgb_optuna_model.pkl
 └── data/
 └── data.csv
+
+Model folder is not included due to size. You can train using:
+python src/xgb_optuna_model_train.py
 ---
 
 

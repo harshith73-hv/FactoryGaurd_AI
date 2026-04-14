@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report, confusion_matrix, precision_r
 from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
 
-from feature_engineering import load_and_process_data
+from factorygaurd_ai.src.feature_engineering import load_and_process_data
 
 
 # ---------------------- LOAD DATA ----------------------

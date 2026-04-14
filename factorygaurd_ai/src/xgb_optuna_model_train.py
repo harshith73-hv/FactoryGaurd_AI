@@ -5,151 +5,133 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from optuna import trial
-from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.metrics import classification_report, confusion_matrix, precision_recall_curve, auc
+from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from sklearn.metrics import classification_report, f1_score, confusion_matrix, precision_recall_curve, auc, average_precision_score
 
+from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
-from lightgbm import LGBMClassifier
 
-from feature_engineering import load_and_process_data
+from factorygaurd_ai.src.feature_engineering import load_and_process_data
 
 
 # ---------------------- LOAD DATA ----------------------
 df = load_and_process_data('data/data.csv')
 
-print("Data loaded successfully\n")
-
-
-# ---------------------- SPLIT INPUT & OUTPUT ----------------------
 x = df.drop('Machine_failure', axis=1)
 y = df['Machine_failure']
-
-print("Data split into X and y\n")
-
 
 # ---------------------- TRAIN TEST SPLIT ----------------------
 x_train, x_test, y_train, y_test = train_test_split(
     x, y, test_size=0.2, random_state=42
 )
 
-# ---------------------- OPTUNA OBJECTIVE FUNCTION ----------------------
-
+# ---------------------- OPTUNA OBJECTIVE ----------------------
 def objective(trial):
 
-    #HYPER PARAMETERS
     params = {
-        "n_estimators" : trial.suggest_int("n_estimators",100,300),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 300),
         "max_depth": trial.suggest_int("max_depth", 3, 10),
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
         "subsample": trial.suggest_float("subsample", 0.6, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
         "random_state": 42,
+        "n_jobs": -1,
+        "verbosity":0,
         "eval_metric": "logloss",
-        "num_leaves": trial.suggest_int("num_leaves", 20, 150),
-        "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
+        "gamma": trial.suggest_float("gamma", 0, 5),
         "scale_pos_weight": trial.suggest_float("scale_pos_weight", 1, 20)
-
     }
-    
 
-    #CROSS VALIDATION
+    
+    # Cross-validation
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
     f1_scores = []
 
-    for train_idx, val_idx in cv.split(x_train,y_train):
+    for train_idx, val_idx in cv.split(x_train, y_train):
         x_tr, x_val = x_train.iloc[train_idx], x_train.iloc[val_idx]
         y_tr, y_val = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
-
-        # ---------------------- HANDLE IMBALANCE ----------------------
-        smote = SMOTE(random_state=42)
+        # ---------------------- SMOTE ----------------------
+        smote = SMOTE(random_state=42, sampling_strategy='auto')
         x_tr, y_tr = smote.fit_resample(x_tr, y_tr)
 
-        print("SMOTE applied\n")
+        #----------------------- TRAIN MODEL ----------------------
 
-        # --------------------- TRAIN MODEL -----------------------------
-        model = LGBMClassifier(**params)
+        model = XGBClassifier(**params)
+
         model.fit(x_tr, y_tr)
 
-        # --------------------- PREDICTION -------------------------------
+        #---------------------- PREDICTION ----------------------
 
         y_prob = model.predict_proba(x_val)[:, 1]
 
-        # --------------------- THRESHOLD TUNING -------------------------
 
+        #-------------------- Threshold tuning inside CV ---------------
         precision, recall, thresholds = precision_recall_curve(y_val, y_prob)
 
         f1 = 2 * (precision[:-1] * recall[:-1]) / (precision[:-1] + recall[:-1] + 1e-8)
 
-        # ---------------------- PR-AUC optimization -----------------------
+        #-------------------- PR-AUC optimization inside CV ---------------
+        # score = average_precision_score(y_val, y_prob)
 
         f1_scores.append(np.max(f1))
 
     return np.mean(f1_scores)
 
+    #model.fit(x_train, y_train)
+
+    #y_pred = model.predict(x_test)
+
+    #return f1_score(y_test, y_pred)
+
+
 # ---------------------- RUN OPTUNA ----------------------
-study = optuna.create_study(direction="maximize")
+study = optuna.create_study(
+    direction="maximize",
+    sampler=optuna.samplers.TPESampler(seed=42)
+)
 
 study.optimize(objective, n_trials=20)
 
 print("\nBest Parameters:\n", study.best_params)
 
 
-# ---------------------- MODEL CREATION ----------------------
-lgbm_model = LGBMClassifier(
+# ---------------------- TRAIN FINAL MODEL ----------------------
+best_model = XGBClassifier(
     **study.best_params,
-    random_state=42
-)
+    eval_metric='logloss'
+    )
 
-print("LightGBM model created\n")
-
-
-# ---------------------- TRAIN MODEL ----------------------
-lgbm_model.fit(x_train, y_train)
-
-print("Model training completed\n")
-
+best_model.fit(x_train, y_train)
 
 #---------------------- SHAP-------------------
-explainer = shap.TreeExplainer(lgbm_model)
+explainer = shap.TreeExplainer(best_model)
 
 shap_values = explainer(x_test)
 
 shap.summary_plot(shap_values, x_test)
 
 # ---------------------- PREDICTION ----------------------
-y_prob = lgbm_model.predict_proba(x_test)[:, 1]
-
-# same threshold tuning as before
-# threshold = 0.6
-# y_pred = (y_prob > threshold).astype(int)
-
-# print("Prediction completed\n")
+y_prob = best_model.predict_proba(x_test)[:, 1]
 
 precision, recall, thresholds = precision_recall_curve(y_test, y_prob)
 
-# Avoid division by zero
 f1_scores = 2 * (precision[:-1] * recall[:-1]) / (precision[:-1] + recall[:-1] + 1e-8)
 
-best_index = np.argmax(f1_scores)
-best_threshold = thresholds[best_index]
+best_idx = np.argmax(f1_scores)
+best_threshold = thresholds[best_idx]
 
-print(f"Best F1-score: {f1_scores[best_index]:.4f}")
+print(f"Best F1-score: {f1_scores[best_idx]:.4f}")
 
-print(f"Best Threshold based on F1-score: {best_threshold:.4f}")
+print(f"Best Threshold: {best_threshold:.4f}")
 
-# Apply best threshold
 y_pred = (y_prob > best_threshold).astype(int)
 
-print("Prediction completed\n")
-
-
-
 # ---------------------- EVALUATION ----------------------
-print("Model Performance:\n")
+print("\nFinal Model Performance:\n")
 print(classification_report(y_test, y_pred))
+
 
 #confusion Matrix
 cm = confusion_matrix(y_test, y_pred)
@@ -176,7 +158,7 @@ plt.ylabel("Precision")
 plt.show()
 
 
-# ---------------------- SAVE MODEL ----------------------
-joblib.dump(lgbm_model, "models/lightgbm_model.pkl")
-
-print("Model saved successfully at 'models/lightgbm_model.pkl'")
+# ---------------------- SAVE MODEL THRESHOLD ----------------------
+joblib.dump(best_model, "models/xgb_optuna_model.pkl")
+joblib.dump(best_threshold,"models/xgb_optuna_threshold.pkl")
+print("\nModel and Threshold saved successfully!")

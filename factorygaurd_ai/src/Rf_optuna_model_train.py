@@ -8,7 +8,7 @@ from optuna import trial
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix, precision_recall_curve, auc
-from feature_engineering import load_and_process_data
+from factorygaurd_ai.src.feature_engineering import load_and_process_data
 from imblearn.over_sampling import SMOTE
 
 

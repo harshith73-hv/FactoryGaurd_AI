@@ -4,6 +4,7 @@ import joblib
 import pandas as pd
 import numpy as np
 import os
+import time
 
 # ---------------- INITIALIZE APP ----------------
 app = FastAPI(title="FactoryGuard AI API", version="1.0")
@@ -56,10 +57,12 @@ def health():
 @app.post("/predict")
 def predict(data: MachineData):
     try:
+        # ⏱ START TIME
+        start_time = time.time()
+
         # Convert input to DataFrame
         df = pd.DataFrame([data.dict()])
 
-        # Ensure column order matches training (important!)
         expected_columns = [
             "Torque_Nm", "Tool_wear_min", "Rotational_speed_rpm",
             "Process_temperature_K", "Air_temperature_K",
@@ -77,12 +80,15 @@ def predict(data: MachineData):
         # Apply threshold
         prediction = int(prob > threshold)
 
-        # Response
+        # ⏱ END TIME
+        latency = (time.time() - start_time) * 1000  # convert to ms
+
         return {
             "failure_probability": round(float(prob), 4),
             "prediction": prediction,
             "threshold_used": round(float(threshold), 4),
-            "status": "FAILURE" if prediction == 1 else "NORMAL"
+            "status": "FAILURE" if prediction == 1 else "NORMAL",
+            "latency_ms": round(latency, 2)   # 👈 ADD THIS
         }
 
     except Exception as e:

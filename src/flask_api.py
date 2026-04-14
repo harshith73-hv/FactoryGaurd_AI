@@ -32,17 +32,23 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    try:
-        start_time = time.time()
+    start_time = time.time()  # ⏱ Start timing immediately
 
-        data = request.json
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No input data provided"}), 400
+
+        # Convert to DataFrame
         df = pd.DataFrame([data])
         df = df[expected_columns]
 
+        # Model prediction
         prob = model.predict_proba(df)[:, 1][0]
         prediction = int(prob > threshold)
 
-        latency = (time.time() - start_time) * 1000
+        latency = (time.time() - start_time) * 1000  # ⏱ End timing
 
         return jsonify({
             "failure_probability": round(float(prob), 4),
@@ -52,7 +58,12 @@ def predict():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        latency = (time.time() - start_time) * 1000  # still measure even on error
+
+        return jsonify({
+            "error": str(e),
+            "latency_ms": round(latency, 2)
+        }), 500
 
 
 if __name__ == "__main__":

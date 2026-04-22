@@ -249,7 +249,7 @@ python src/xgb_optuna_model_train.py
 
 # 👩‍💻 Author
 
-Sarada
+Harshith
 Machine Learning Engineer (Intern)
 
 ---

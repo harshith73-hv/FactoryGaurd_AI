@@ -166,8 +166,8 @@ Final model achieves high precision (0.83) while maintaining reasonable recall (
 
 ---
 ## 📸 Visual Results
-  ![Confusion Matri](assets\Confusion_Matrix.png)
-  ![PR Curve](assets\Precision_Recall_Curve.png)
+  ![Confusion Matrix](assets\Confusion_Matrix.png)
+  ![PR Curve](assets\PRC.png)
 
 ---
 
